@@ -22,3 +22,20 @@ php artisan make:model Setting
 	];
 
 php artisan make:controller Admin/SettingsController
+
+API call,
+
+For admin panel,
+
+	POST /api/admin/login
+	GET /api/admin/dashboard
+	POST /api/admin/change-password
+	GET, POST /api/admin/settings
+	POST /api/admin/logout
+
+
+For front end,
+
+	POST /api/frontend/login
+	GET /api/frontend/dashboard
+	POST /api/frontend/logout
