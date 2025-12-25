@@ -9,6 +9,7 @@ Route::prefix('admin')->group(function () {
 
     Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
         Route::get('/dashboard', [AuthController::class, 'dashboard']);
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
         Route::post('/logout', [AuthController::class, 'logout']);
     });
 });
