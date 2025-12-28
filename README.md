@@ -100,3 +100,53 @@ To update,
 	    'site_logo',
 	    'site_favicon'
 	]));
+
+
+In routes/adminapi.php
+
+	use Illuminate\Http\Request;
+
+	Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
+	        // ✅ TOKEN VALIDATION API (Heartbeat)
+	        Route::get('/current-time', function (Request $request) {
+	            return response()->json([
+	                'status' => 200,
+	                'time'   => now()->toDateTimeString(),
+	                'user'   => auth()->user(), // ✅ always works // $request->user(), // ✅ works
+	            ]);
+	        });
+	 });
+
+
+In login api,
+
+	public function login(Request $request)
+	{
+		$request->validate([
+			'email' => 'required|email',
+			'password' => 'required',
+			'pattern' => 'required|digits:5'
+		]);
+	
+		$admin = AdminUser::where('email', $request->email)->first();
+	
+		if (
+			!$admin ||
+			!Hash::check($request->password, $admin->password) ||
+			$admin->pattern !== $request->pattern
+		) {
+			return response()->json([
+				'message' => 'Invalid credentials'
+			], 401);
+		}
+	
+		// 🔥 REVOKE ALL OLD TOKENS
+		$admin->tokens()->delete();        
+	
+		$token = $admin->createToken('admin-token', ['admin'])->plainTextToken;
+	
+		return response()->json([
+			'token' => $token,
+			'admin' => $admin
+		]);
+	}
