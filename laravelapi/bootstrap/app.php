@@ -5,8 +5,10 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+//use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken; // New
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -35,10 +37,35 @@ return Application::configure(basePath: dirname(__DIR__))
     |--------------------------------------------------------------------------
     */
     ->withMiddleware(function (Middleware $middleware): void {
+        /*
+        |--------------------------------------------------------------
+        | CORS CONFIGURATION
+        |--------------------------------------------------------------
+        */
+        // $middleware->cors([
+        //     'paths' => ['api/*'],
+        //     'allowed_methods' => ['*'],
+        //     'allowed_origins' => ['http://localhost:3000'],
+        //     'allowed_headers' => ['*'],
+        //     'exposed_headers' => [],
+        //     'max_age' => 0,
+        //     'supports_credentials' => false, // IMPORTANT (token auth)
+        // ]);
+        $middleware->append(HandleCors::class);
+
+        /* (NEW)
+        |--------------------------------------------------------------------------
+        | Disable CSRF for API routes (IMPORTANT)
+        |--------------------------------------------------------------------------
+        */
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);    	
 
         // API middleware group
         $middleware->api([
-            EnsureFrontendRequestsAreStateful::class,
+        	// ❌ REMOVE this if you are NOT using cookie-based auth
+            //EnsureFrontendRequestsAreStateful::class,
             SubstituteBindings::class,
         ]);
 
