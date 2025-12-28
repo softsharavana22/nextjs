@@ -28,6 +28,9 @@ class AuthController
             ], 401);
         }
 
+        // 🔥 REVOKE ALL OLD TOKENS
+        $admin->tokens()->delete();        
+
         $token = $admin->createToken('admin-token', ['admin'])->plainTextToken;
 
         return response()->json([
