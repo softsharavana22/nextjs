@@ -150,3 +150,166 @@ In login api,
 			'admin' => $admin
 		]);
 	}
+		------------------------------------------------
+
+Job
+	
+	php artisan queue:table
+	php artisan migrate
+
+phpMyAdmin tables:
+
+	jobs
+	failed_jobs
+
+Create Normal Job
+
+	php artisan make:job SendEmailJob
+
+app/Jobs/SendEmailJob.php
+
+	<?php
+	
+	namespace App\Jobs;
+	
+	use App\Models\User;
+	use App\Models\CronCheck;
+	use Illuminate\Bus\Queueable;
+	use Illuminate\Contracts\Queue\ShouldQueue;
+	use Illuminate\Foundation\Bus\Dispatchable;
+	use Illuminate\Queue\InteractsWithQueue;
+	use Illuminate\Queue\SerializesModels;
+	use Illuminate\Support\Facades\Cache;
+	use Illuminate\Support\Facades\Log;
+	use DB;
+	
+	class SendEmailJob implements ShouldQueue
+	{
+	    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+	
+	    public function __construct(
+	        public int $userId
+	    ) {}
+	
+	    public function handle(): void
+	    {
+	        /**
+	         * 1️⃣ Prevent duplicate execution (CRON lock)
+	         */
+	        $lock = Cache::lock('send-email-job-lock', 60); // 5 minutes
+	
+	        if (! $lock->get()) {
+	            return; // already running somewhere else
+	        }
+	
+	        try {
+	            /**
+	             * 2️⃣ Your actual CRON logic
+	             */
+	            $user = User::find($this->userId);
+	            // echo '<pre>';
+	            // print_r($user);
+	
+	            if (! $user) {
+	                Log::warning('User not found, stopping recurring job');
+	                return;
+	            }
+	
+	            Log::info("Running every 5 min job for {$user->email}");
+	
+	            //$check = DB::table('cron_checks')->where('id', 1)->first();
+	            $check = DB::table('cron_checks')->orderBy('id', 'desc')->first();
+	            if(!empty($check)) {
+	                $data = $check->id + 1;
+	                $insertData['name'] = $data;
+	                DB::table('cron_checks')->insert($insertData);                
+	            }
+	            else {
+	                $insertData['name'] = 'test';
+	                DB::table('cron_checks')->insert($insertData);
+	            }
+	
+	            // 👉 YOUR TASK HERE
+	            // send email
+	            // cleanup
+	            // sync data
+	            // etc.
+	
+	        } finally {
+	            $lock->release();
+	        }
+	
+	        /**
+	         * 3️⃣ THIS IS THE CRON PART (VERY IMPORTANT)
+	         * Re-dispatch the SAME job after 5 minutes
+	         */
+	        self::dispatch($this->userId)->delay(now()->addMinutes(1));
+	    }
+	}
+
+app/Http/Controllers/CronController.php
+
+	<?php
+	
+	namespace App\Http\Controllers;
+	
+	use App\Jobs\SendEmailJob;
+	
+	class CronController extends Controller
+	{
+	    public function start()
+	    {
+	        // example user id
+	        $userId = auth()->id() ?? 1;
+	
+	        SendEmailJob::dispatch($userId);
+	
+	        return 'Recurring job started';
+	    }
+	}
+
+routes/web.php
+
+	Route::get('/start-cron-job', [CronController::class, 'start']);
+
+	php artisan cron:start
+
+	php artisan queue:work
+
+Steps:
+Step 1 — Create a batch file
+
+Open Notepad.
+
+Paste this:
+
+	cd /d D:\xampp\htdocs\laravelapi
+	php artisan queue:work --tries=3 --timeout=300
+
+
+	Replace D:\xampp\htdocs\laravelapi with your Laravel project path.
+
+Save it as:
+
+	start-laravel-queue.bat
+
+Step 2 — Open Task Scheduler
+
+	Press Windows + R, type taskschd.msc, hit Enter.
+	
+	Click Create Task.
+	
+	Name it: Laravel Queue Worker.
+	
+	Check Run whether user is logged on or not.
+	
+	Go to Triggers → New → At startup.
+	
+	Go to Actions → New → Start a program.
+	
+	Program/script: D:\path\to\start-laravel-queue.bat
+	
+	Go to Conditions and uncheck Stop if computer switches to battery power (optional).
+	
+	Save.
+
